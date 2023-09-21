@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/surya/Upwork/amit foxtini/rp2040_pedal/pedal_cpp_sdk/pedal_proj/build/pico-sdk/src/rp2_common/pico_cyw43_driver/CMakeFiles/PioasmBuild"
+		},
+		{
+			"file" : "/home/surya/Upwork/amit foxtini/rp2040_pedal/pedal_cpp_sdk/pedal_proj/build/pico-sdk/src/rp2_common/pico_cyw43_driver/CMakeFiles/PioasmBuild.rule"
+		},
+		{
+			"file" : "/home/surya/Upwork/amit foxtini/rp2040_pedal/pedal_cpp_sdk/pedal_proj/build/pico-sdk/src/rp2_common/pico_cyw43_driver/CMakeFiles/PioasmBuild-complete.rule"
+		},
+		{
+			"file" : "/home/surya/Upwork/amit foxtini/rp2040_pedal/pedal_cpp_sdk/pedal_proj/build/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/PioasmBuild-stamp/PioasmBuild-build.rule"
+		},
+		{
+			"file" : "/home/surya/Upwork/amit foxtini/rp2040_pedal/pedal_cpp_sdk/pedal_proj/build/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/PioasmBuild-stamp/PioasmBuild-configure.rule"
+		},
+		{
+			"file" : "/home/surya/Upwork/amit foxtini/rp2040_pedal/pedal_cpp_sdk/pedal_proj/build/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/PioasmBuild-stamp/PioasmBuild-download.rule"
+		},
+		{
+			"file" : "/home/surya/Upwork/amit foxtini/rp2040_pedal/pedal_cpp_sdk/pedal_proj/build/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/PioasmBuild-stamp/PioasmBuild-install.rule"
+		},
+		{
+			"file" : "/home/surya/Upwork/amit foxtini/rp2040_pedal/pedal_cpp_sdk/pedal_proj/build/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/PioasmBuild-stamp/PioasmBuild-mkdir.rule"
+		},
+		{
+			"file" : "/home/surya/Upwork/amit foxtini/rp2040_pedal/pedal_cpp_sdk/pedal_proj/build/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/PioasmBuild-stamp/PioasmBuild-patch.rule"
+		},
+		{
+			"file" : "/home/surya/Upwork/amit foxtini/rp2040_pedal/pedal_cpp_sdk/pedal_proj/build/pico-sdk/src/rp2_common/pico_cyw43_driver/pioasm/src/PioasmBuild-stamp/PioasmBuild-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"PioasmBuild"
+		],
+		"name" : "PioasmBuild"
+	}
+}
