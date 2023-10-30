@@ -51,7 +51,7 @@ device made around RP2040 to measure Bicycle pedal's RPM and Angle
 ## Repository map:
 
 - **Fabrication :** this folder contains all the PCB fabrication files
-- **Pedal\_V1.0 :** this folder contains all the source code and testing codes
+- **Pedal\_V1.1 :** this folder contains all the source code and testing codes
 - **Trail codes :** this folder contains all the intermediate testing codes
 - **Img :** This folder contains all the images
 
