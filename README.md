@@ -39,6 +39,13 @@ device made around RP2040 to measure Bicycle pedal's RPM and Angle
   - In Normal mode, if the device was not disturbed for 5 seconds, it will enter sleep mode
   - The device will wake up from sleep mode immediately if there is any movement or disturbance and begins actively transmitting until device comes to rest or disturbance ends
 
+
+
+
+
+- ## Error Handling:
+    ![Alt text](img/peripheral_error.jpg)
+  - If the RP2040 fails to communicate with the peripherals (NRF24 and MPU6050) or if the peripherals stop responding for any reason, the device lights an strong Violet light for one second and Restart itself.
 <br><br>
 
 ## Repository map:
