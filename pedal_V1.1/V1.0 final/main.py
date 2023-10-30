@@ -11,8 +11,14 @@ import uasyncio as asyncio
 from aswitch import Pushbutton
 import _thread
 import uos
+import os
+import gc
 
+DEBUG_mode = False
 file_path = "rx_pair.bin"
+
+sda_pin = 12
+scl_pin = 13
 
 pairing_pipe_Tx = b"\xe1\xf0\xf0\xf0\xf0"
 pairing_pipe_Rx = b"\xe2\xf0\xf0\xf0\xf0"
@@ -26,7 +32,7 @@ green = (0, 255, 0)
 blue = (0, 0, 255)
 red = (255, 0, 0)
 black = (0,0,0)
- 
+
 pixels.brightness(50)
 pixels.set_pixel(0, red)
 pixels.show()
@@ -52,8 +58,6 @@ button = Pin(BUTTON, Pin.IN, Pin.PULL_UP)
 #device adress
 MPU6050_ADDRESS = 0x69
 
-i2c = I2C(0, sda=Pin(12), scl=Pin(13), freq=400000)
-imu = MPU6050(i2c)
 
 RateRoll, RatePitch, RateYaw = 0, 0, 0
 RateCalibrationRoll, RateCalibrationPitch, RateCalibrationYaw = 0, 0, 0
@@ -97,30 +101,39 @@ Rx_ID = b"\x00"
 # 0xf0f0f0f0e1, 0xf0f0f0f0d2
 #pipes = (pairing_pipe_Tx, b"\xd2\xf0\xf0\xf0\xf0")
 
+def debug_print(message):
+    if DEBUG_mode:
+        print(message)
+
+s = os.statvfs('/')
+debug_print(f"Free storage: {s[0]*s[3]/1024} KB")
+debug_print(f"Memory: {gc.mem_alloc()} of {gc.mem_free()} bytes used.")
+debug_print(f"CPU Freq: {machine.freq()/1000000}Mhz")
+      
 def check_paired():
     try:
         # Check if the file exists
         file_size = uos.stat(file_path)[6]
         if file_size > 0:
-            print("File exists.")
+            debug_print("File exists.")
             return True
         else:
-            print("File is empty.")
+            debug_print("File is empty.")
             return False
     except OSError as e:
         if e.args[0] == 2:  # ENOENT: No such file or directory
-            print("File does not exist.")
+            debug_print("File does not exist.")
             return False
     
 def Generate_TxID():
     global Tx_ID
-    print("generating Tx_ID")
+    debug_print("generating Tx_ID")
     UID = machine.unique_id()
     # Extract the last 5 elements from the hex array
     last_5_elements = UID[-5:]
     # Convert the last 5 elements to bytes
     Tx_ID = bytes(last_5_elements)
-    print("Tx pipe ID:", Tx_ID)
+    debug_print(f"Tx pipe ID: {Tx_ID}")
 
 def save_Rx(byte_array):
     with open(file_path, 'w') as f:
@@ -133,21 +146,30 @@ def NRF_init():
     csn = Pin(cfg["csn"], mode=Pin.OUT, value=1)
     ce = Pin(cfg["ce"], mode=Pin.OUT, value=0)
     spi = cfg["spi"]
-    if(Tx_ID==pairing_pipe_Tx):
-        nrf = nrf24l01.NRF24L01(spi, csn, ce, payload_size=5)
-    else:
-        nrf = nrf24l01.NRF24L01(spi, csn, ce, payload_size=16)
-    auto_ack(nrf)
-    nrf.set_power_speed(nrf24l01.POWER_3, nrf24l01.SPEED_1M)
-    nrf.set_crc(2)
-    nrf.open_tx_pipe(Tx_ID)
-    nrf.open_rx_pipe(1, Rx_ID)
-    if(Tx_ID==pairing_pipe_Tx):
-        print("pairing mode, waiting for message")
-        nrf.start_listening()
-    else:
-        print("normal mode, sending data")
-        nrf.stop_listening()
+    try:
+        if(Tx_ID==pairing_pipe_Tx):
+            nrf = nrf24l01.NRF24L01(spi, csn, ce, payload_size=5)
+        else:
+            nrf = nrf24l01.NRF24L01(spi, csn, ce, payload_size=16)
+    
+        auto_ack(nrf)
+        nrf.set_power_speed(nrf24l01.POWER_3, nrf24l01.SPEED_1M)
+        nrf.set_crc(2)
+        nrf.open_tx_pipe(Tx_ID)
+        nrf.open_rx_pipe(1, Rx_ID)
+        if(Tx_ID==pairing_pipe_Tx):
+            debug_print("pairing mode, waiting for message")
+            nrf.start_listening()
+        else:
+            debug_print("normal mode, sending data")
+            nrf.stop_listening()
+    except Exception as e:
+        pixels.fill((200,100,200))
+        pixels.show()
+        time.sleep_ms(2000)
+        debug_print(e)
+        debug_print("NRF_init error, resetting device")
+        machine.reset()
     
 def auto_ack(nrf):
     nrf.reg_write(0x01, 0b11111000)  # enable auto-ack on all pipes
@@ -179,26 +201,27 @@ async def btn_app():
             if(blink):
                 pixels.fill(color1)
                 pixels.show()
-                time.sleep_ms(blk_time)
+                await asyncio.sleep_ms(blk_time)
                 pixels.fill(color2)
                 pixels.show()
-                time.sleep_ms(blk_time)
+                await asyncio.sleep_ms(blk_time)
             await asyncio.sleep_ms(100)
     core2_status = False
     
 def long_press():
     global Tx_ID, prev_pair_time
     prev_pair_time = time.ticks_ms()
-    print("button long pressed")
+    debug_print("button long pressed")
     Tx_ID=pairing_pipe_Tx
     NRF_init()
 
 def double_press():
-    print("button double pressed")
+    debug_print("button double pressed")
     imu_calibrate()
 
 def single_press():
-    print("button single pressed")
+    debug_print("button single pressed")
+    pass
 
 
 def btn_thread():
@@ -217,14 +240,15 @@ def gyro_fetch():
         AccY = imu.accel.y
         AccZ = imu.accel.z
     except OSError:
-            print("OSError exception")
+            debug_print("OSError exception")
+            pass
     AngleRoll = math.atan(AccY / math.sqrt(AccX * AccX + AccZ * AccZ)) * (180 / 3.142)
     AnglePitch = -math.atan(AccX / math.sqrt(AccY * AccY + AccZ * AccZ)) * (180 / 3.142)
 
 def imu_calibrate():
     global calib_flag, RateCalibrationRoll, RateCalibrationPitch, RateCalibrationYaw, calib_flag, pixels
     calib_flag = True
-    print("calibrating...")
+    debug_print("calibrating...")
     #LoopTimer = time.ticks_us()
     timer_update()
     for _ in range(RateCalibrationNumber):
@@ -237,7 +261,7 @@ def imu_calibrate():
     RateCalibrationPitch /= RateCalibrationNumber
     RateCalibrationYaw /= RateCalibrationNumber
     calib_flag = False
-    print("done calibrating")
+    debug_print("done calibrating")
 
 
 def imu_loop():
@@ -249,9 +273,8 @@ def imu_loop():
     
     PedalAngle = abs(AngleRoll)+abs(AnglePitch)
     RPM = RateYaw*0.166667
-    #print("Roll Angle [°]:", KalmanAngleRoll, "Pitch Angle [°]:", KalmanAnglePitch)
-    print("Roll Angle [°]:", AngleRoll, "Pitch Angle [°]:", AnglePitch)
-    print("Angle :", PedalAngle, " RPM :", RPM)
+    debug_print(f"Roll Angle [°]:{AngleRoll}, Pitch Angle [°]: {AnglePitch}")
+    debug_print(f"Angle : {PedalAngle}, RPM : {RPM}")
     #time.sleep(0.1)
     while time.ticks_diff(time.ticks_us(), LoopTimer) < 4000:
         pass
@@ -263,30 +286,44 @@ def timer_update():
 
 
 def interrupt_callback(pin):
-    print("interrputed")
-    print(i2c.readfrom_mem(MPU6050_ADDRESS,0x3A ,  1))
+    debug_print("interrputed")
+    debug_print(i2c.readfrom_mem(MPU6050_ADDRESS,0x3A ,  1))
+    i2c.readfrom_mem(MPU6050_ADDRESS,0x3A ,  1)
     
 
 def NRF_send_barray(barray):
+    global Tx_ID
     nrf.stop_listening()
     try:
         nrf.send(barray)
-        print("sent response: ", barray)
+        debug_print(f"sent response: {barray}")
         Tx_ID = pairing_pipe_Tx
     except OSError:
         pass
     
 def setup():
-    global Tx_ID, Rx_ID, prev_time, prev_wake_time, prev_pair_time, pb
+    global Tx_ID, Rx_ID, prev_time, prev_wake_time, prev_pair_time, pb, int_pin, imu, i2c
     
     Rx_ID = pairing_pipe_Rx
     if(not check_paired()):
-        print("no pairing data found")
+        debug_print("no pairing data found")
         Tx_ID = pairing_pipe_Tx
     elif(check_paired):
         Generate_TxID()
-    print(Tx_ID)
-    print(Rx_ID)
+    debug_print(Tx_ID)
+    debug_print(Rx_ID)
+    
+    try:
+        i2c = I2C(0, sda=Pin(sda_pin), scl=Pin(scl_pin), freq=400000)
+        imu = MPU6050(i2c)
+    except Exception as e:
+        pixels.fill((200,100,200))
+        pixels.show()
+        time.sleep_ms(2000)
+        debug_print(e)
+        debug_print("MPU_init error, resetting device")
+        machine.reset()
+        
     NRF_init()
     
     # Creating the pushbutton instance
@@ -312,9 +349,10 @@ while(1):
     if(time.ticks_diff(time.ticks_ms(), prev_time) > 60000):
         prev_time = time.ticks_ms()
         get_bat()
-        print("bat_value:", bat_v)
+        debug_print(f"bat_value:{bat_v}")
     
     if(Tx_ID != pairing_pipe_Tx):
+        debug_print(f"330:Memory: {gc.mem_alloc()} of {gc.mem_free()} bytes used.")
         if(not calib_flag):
             imu_loop()
             roll_mov = abs(prev_RateRoll)-abs(RateRoll)
@@ -325,48 +363,55 @@ while(1):
             Prev_RatePitch = RatePitch
             prev_RateYaw = RateYaw
             
-            if((max_movement<2) and (not calib_flag)):
-                if(time.ticks_diff(time.ticks_ms(), prev_wake_time) > 5000):
-                    prev_wake_time = time.ticks_ms()
-                    sleep_flag = True
-                    imu.cycle_sleep()
-                    time.sleep(0.01)
-                    print("movement less than 2")
-                    pixels.fill(black)
-                    pixels.show()
-                    lowpower.dormant_with_modes({
-                        IMU_PIN: lowpower.EDGE_LOW,
-                        BUTTON: lowpower.EDGE_LOW
-                        })
-                    print("woke up")
-                    imu.wake()
-                    sleep_flag = False
-                    get_bat()
-                    print("battery voltage:", bat_v)
-                    print(i2c.readfrom_mem(MPU6050_ADDRESS,0x3A ,  1))
-                    pixels.fill(blue)
-                    pixels.show()
-                    if(not core2_status):
-                        pass
-                        _thread.start_new_thread(btn_thread, ())
-                    NRF_init()
-                    timer_update()
+            if((max_movement<2) and (not calib_flag) and (Tx_ID != pairing_pipe_Tx) and (time.ticks_diff(time.ticks_ms(), prev_wake_time) > 5000)):
+                prev_wake_time = time.ticks_ms()
+                sleep_flag = True
+                imu.cycle_sleep()
+                time.sleep(0.01)
+                debug_print("movement less than 2")
+                pixels.fill(black)
+                pixels.show()
+                lowpower.dormant_with_modes({
+                    IMU_PIN: lowpower.EDGE_LOW,
+                    BUTTON: lowpower.EDGE_LOW
+                    })
+                debug_print("woke up")
+                imu.wake()
+                sleep_flag = False
+                get_bat()
+                # Creating the pushbutton instance
+                pb = Pushbutton(button, suppress=True)
+                # Pushbutton actions
+                pb.double_func(double_press)
+                pb.long_func(long_press)
+                pb.release_func(single_press)
+                debug_print(f"battery voltage:{bat_v}")
+                debug_print(i2c.readfrom_mem(MPU6050_ADDRESS,0x3A ,  1))
+                pixels.fill(blue)
+                pixels.show()
+                if(not core2_status):
+                    pass
+                    _thread.start_new_thread(btn_thread, ())
+                NRF_init()
+                timer_update()
             
             else:
                 try:
+                    debug_print(f"Memory: {gc.mem_alloc()} of {gc.mem_free()} bytes used.")
                     pixels.fill(green)
                     pixels.show()
+                    gc.collect()
                     nrf.send(struct.pack("ffff", time.ticks_ms(), PedalAngle, RPM, bat_v))
                     pixels.fill(blue)
                     pixels.show()
                     
                 except OSError as e:
-                    print(e)
+                    debug_print(e)
                     pixels.fill(red)
                     pixels.show()
                 
         elif(calib_flag):
-            print("calibrating in progress")
+            debug_print("calibrating in progress")
             pixels.fill(red)
             pixels.show()
             time.sleep(0.5)
@@ -377,7 +422,10 @@ while(1):
             if nrf.any():
                 while nrf.any():
                     buf = nrf.recv()
-                    print("received:", buf)
+                    debug_print(f"received:{buf}")
+                    if(buf != b'\x0e\x00\x00\x00\x00'):
+                        debug_print("corrupted data, ignoring")
+                        break
                     if(buf != b'\xf0\xf0\xf0\xf0\xf0'):
                         save_Rx(buf)
                     else:
@@ -386,7 +434,7 @@ while(1):
                         pixels.fill(green)
                         pixels.show()
                         time.sleep_ms(500)
-                        print("paired, entering normal mode")
+                        debug_print("paired, entering normal mode")
                         NRF_init()
                     utime.sleep_ms(_RX_POLL_DELAY)
                 
@@ -396,8 +444,10 @@ while(1):
                     nrf.stop_listening()
                     NRF_send_barray(Tx_ID)
                     nrf.start_listening()
+            gc.collect()
         else:
             prev_pair_time = time.ticks_ms()
             Generate_TxID()
             Blink(orange,black,0)
-            print("timeout, exiting pairing mode")
+            debug_print("timeout, exiting pairing mode")
+

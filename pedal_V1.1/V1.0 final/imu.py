@@ -417,14 +417,17 @@ class MPU6050(object):
             self._read(self.buf6, 0x43, self.mpu_addr)
         except OSError:
             raise MPUException(self._I2Cerror)
-        self._gyro._ivector[0] = bytes_toint(self.buf6[0], self.buf6[1])
-        self._gyro._ivector[1] = bytes_toint(self.buf6[2], self.buf6[3])
-        self._gyro._ivector[2] = bytes_toint(self.buf6[4], self.buf6[5])
-        scale = (131, 65.5, 32.8, 16.4)
-        self._gyro._vector[0] = self._gyro._ivector[0]/scale[self.gyro_range]
-        self._gyro._vector[1] = self._gyro._ivector[1]/scale[self.gyro_range]
-        self._gyro._vector[2] = self._gyro._ivector[2]/scale[self.gyro_range]
-
+        try:
+            self._gyro._ivector[0] = bytes_toint(self.buf6[0], self.buf6[1])
+            self._gyro._ivector[1] = bytes_toint(self.buf6[2], self.buf6[3])
+            self._gyro._ivector[2] = bytes_toint(self.buf6[4], self.buf6[5])
+            scale = (131, 65.5, 32.8, 16.4)
+            self._gyro._vector[0] = self._gyro._ivector[0]/scale[self.gyro_range]
+            self._gyro._vector[1] = self._gyro._ivector[1]/scale[self.gyro_range]
+            self._gyro._vector[2] = self._gyro._ivector[2]/scale[self.gyro_range]
+        except Exception as e:
+            print(e)
+            
     def get_gyro_irq(self):
         '''
         For use in interrupt handlers. Sets self._gyro._ivector[] to signed
